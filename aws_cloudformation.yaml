@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Audio PsyChat EC2 Instance with GPU Support'
+
+Parameters:
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+    
+  InstanceType:
+    Type: String
+    Default: g4dn.xlarge
+    AllowedValues:
+      - g4dn.xlarge
+      - g4dn.2xlarge
+      - g4dn.4xlarge
+    Description: EC2 instance type with GPU support
+    
+  AllowedIP:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: IP address range allowed to access the application (use your IP for security)
+
+Resources:
+  PsyChatSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Audio PsyChat
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedIP
+          Description: SSH access
+        - IpProtocol: tcp
+          FromPort: 8086
+          ToPort: 8086
+          CidrIp: !Ref AllowedIP
+          Description: Audio PsyChat web interface
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref AllowedIP
+          Description: HTTP access
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedIP
+          Description: HTTPS access
+
+  PsyChatInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      ImageId: ami-0ec4ab14b1c5a10f2  # Deep Learning AMI Neuron (Ubuntu 22.04)
+      SecurityGroupIds:
+        - !Ref PsyChatSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Update system
+          apt-get update -y
+          apt-get upgrade -y
+          
+          # Install required packages
+          apt-get install -y git wget curl unzip ffmpeg
+          
+          # Setup for ubuntu user
+          mkdir -p /home/ubuntu/AudioPsyChat
+          chown -R ubuntu:ubuntu /home/ubuntu/AudioPsyChat
+          
+          # Create info file
+          cat > /home/ubuntu/setup_info.txt << 'EOF'
+          Audio PsyChat AWS Setup Complete!
+          
+          Next steps:
+          1. Upload your project files using deploy_to_aws.sh
+          2. Upload model files using upload_models.sh
+          3. SSH into the instance and run: python main.py
+          4. Access the app at: http://YOUR_PUBLIC_IP:8086/static
+          EOF
+          
+          chown ubuntu:ubuntu /home/ubuntu/setup_info.txt
+      Tags:
+        - Key: Name
+          Value: Audio-PsyChat-Server
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the newly created EC2 instance
+    Value: !Ref PsyChatInstance
+    
+  PublicIP:
+    Description: Public IP address of the instance
+    Value: !GetAtt PsyChatInstance.PublicIp
+    
+  WebURL:
+    Description: URL to access Audio PsyChat
+    Value: !Sub 'http://${PsyChatInstance.PublicIp}:8086/static'
+    
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${PsyChatInstance.PublicIp}'

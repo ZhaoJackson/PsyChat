@@ -1,13 +1,13 @@
 #!/bin/bash
-# 检查conda环境是否存在
+# Check if conda environment exists
 ENVIRONMENT_NAME="AuPC38"
 source .bashrc
 if ! conda env list | grep -q "^$ENVIRONMENT_NAME "; then
-    echo "环境 $ENVIRONMENT_NAME 不存在，正在创建..."
+    echo "Environment $ENVIRONMENT_NAME does not exist, creating..."
     conda create --name $ENVIRONMENT_NAME python=3.8.10
-    echo "环境 $ENVIRONMENT_NAME 已成功创建。"
+    echo "Environment $ENVIRONMENT_NAME created successfully."
 else
-    echo "环境 $ENVIRONMENT_NAME 已存在。"
+    echo "Environment $ENVIRONMENT_NAME already exists."
 fi
 conda activate AuPC38
 conda install paddlepaddle-gpu==2.4.2 cudatoolkit=11.7 -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/Paddle/ -c conda-forge

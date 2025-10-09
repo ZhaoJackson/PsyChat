@@ -1,0 +1,287 @@
+# Audio PsyChat - Git Ignore File
+
+# ============================================================================
+# MODEL FILES (Large files that should not be in version control)
+# ============================================================================
+
+# PsyChat Model Files - Download from HuggingFace instead
+PsyChat/pytorch_model-00001-of-00007/
+PsyChat/pytorch_model-00002-of-00007/
+PsyChat/pytorch_model-00003-of-00007/
+PsyChat/pytorch_model-00004-of-00007/
+PsyChat/pytorch_model-00005-of-00007/
+PsyChat/pytorch_model-00006-of-00007/
+PsyChat/pytorch_model-00007-of-00007/
+
+# Alternative pattern for any pytorch model directories
+PsyChat/pytorch_model-*-of-*/
+
+# Large tokenizer model file
+PsyChat/tokenizer.model
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+
+# Test directory temporary files
+test/input_audio.*
+test/output.wav
+test/temp_*
+
+# Web audio files (generated during runtime)
+web/wavs/*.wav
+web/wavs/*.webm
+web/wavs/temp_*
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ============================================================================
+# SYSTEM FILES
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# IDE / EDITOR FILES
+# ============================================================================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ============================================================================
+# LOGS AND DATABASES
+# ============================================================================
+
+# Log files
+*.log
+logs/
+log/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# DEPLOYMENT FILES
+# ============================================================================
+
+# Deployment packages
+*.tar.gz
+psychat_deploy.tar.gz
+
+# SSH keys (if accidentally placed in repo)
+*.pem
+*.key
+id_rsa*
+
+# AWS credentials
+.aws/
+aws-credentials.txt
+
+# ============================================================================
+# CONDA / VIRTUAL ENVIRONMENTS
+# ============================================================================
+
+# Conda environments
+envs/
+.conda/
+
+# ============================================================================
+# MISC
+# ============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Compressed files
+*.zip
+*.rar
+*.7z
+
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.mp3
+*.flac
+*.ogg
+
+# Keep small test audio files
+!test/do_not_delete_please.wav

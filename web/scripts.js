@@ -1,39 +1,39 @@
 let isRecording = false;
 let mediaRecorder;
 let audioChunks = [];
-let recordCount = 0; // 记录用户完成录音的次数
+let recordCount = 0; // Record the number of times user completed recording
 
 function toggleRecording() {
     let recordBtn = document.getElementById('record-btn');
     if (!isRecording) {
         startRecording();
-        recordBtn.textContent = '停止';
+        recordBtn.textContent = 'Stop';
         isRecording = true;
     } else {
         stopRecording();
-        recordBtn.textContent = '录音';
+        recordBtn.textContent = 'Record';
         isRecording = false;
     }
 }
 
 
 function stopRecording() {
-    console.log("停止录音...");
+    console.log("Stopping recording...");
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop(); // 这会触发 'stop' 事件并执行下面的逻辑
+        mediaRecorder.stop(); // This will trigger 'stop' event and execute the logic below
     }
 }
 
 function startRecording() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.log("浏览器不支持 mediaDevices API，或者网站不支持Https。");
+        console.log("Browser does not support mediaDevices API, or website does not support Https.");
         return;
     }
-    console.log("开始录音...");
+    console.log("Starting recording...");
     navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
             mediaRecorder = new MediaRecorder(stream);
-            audioChunks = []; // 清空数组以便新录音
+            audioChunks = []; // Clear array for new recording
 
             mediaRecorder.start();
 
@@ -43,16 +43,16 @@ function startRecording() {
 
             mediaRecorder.addEventListener("stop", () => {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                audioChunks = []; // 重置音频块数组以备下次录音使用
+                audioChunks = []; // Reset audio chunks array for next recording
 
                 let formData = new FormData();
                 formData.append("audio", audioBlob);
 
-                // 获取聊天历史
+                // Get chat history
                 const messages = document.querySelectorAll('.chat-container .message span');
                 let history = Array.from(messages).map(m => m.innerText).join('\n');
 
-                // 将聊天历史作为字符串添加到表单数据
+                // Add chat history as string to form data
                 formData.append("history", history);
 
                 fetch("/api/audio_to_audio", {
@@ -61,35 +61,35 @@ function startRecording() {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log("录音文件已发送", data);
+                    console.log("Audio file sent", data);
                     addMessage('user', data.asrText);
                     addMessage('therapist', data.llm_response, true);
                     playTTSAudio(data.ttsAudio);
                 })
-                .catch(error => console.log("录音文件上传失败", error));
+                .catch(error => console.log("Audio file upload failed", error));
             });
         })
-        .catch(error => console.log("获取音频流失败", error));
+        .catch(error => console.log("Failed to get audio stream", error));
 }
 
 function playTTSAudio(audioUrl) {
 
-    // 暂时手动指定
+    // Temporarily manually specified
     audioUrl = "/static/wavs/tts.wav";
 
-    // 使用fetch获取Blob
+    // Use fetch to get Blob
     fetch(audioUrl)
         .then(response => response.blob())
         .then(blob => {
-            // 创建Blob URL
+            // Create Blob URL
             const blobUrl = URL.createObjectURL(blob);
 
-            // 创建audio元素并播放音频
+            // Create audio element and play audio
             const audio = new Audio();
             audio.src = blobUrl;
             audio.play();
 
-            // 可以选择在播放后释放这个Blob URL，但通常我们会在用户触发某个操作后释放
+            // Can choose to release this Blob URL after playing, but usually we release it after user triggers some action
             // audio.onended = () => URL.revokeObjectURL(blobUrl);
         })
         .catch(error => console.error('Error playing TTS audio:', error));
@@ -100,42 +100,42 @@ function sendMessage() {
     const userInput = document.getElementById('user-input').value;
     if (userInput.trim() !== '') {
         addMessage('user', userInput);
-        document.getElementById('user-input').value = ''; // 清空输入框
-        sendChatHistory(); // 发送聊天记录
+        document.getElementById('user-input').value = ''; // Clear input box
+        sendChatHistory(); // Send chat history
     }
 }
 
-// 滚动聊天窗口到底部的函数，用于显示最新消息
+// Function to scroll chat window to bottom for displaying latest messages
 function scrollToBottom() {
     const chatContainer = document.getElementById('chat-container');
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// 将当前聊天记录保存到本地存储中
+// Save current chat history to local storage
 function saveChatHistory() {
-    // 选择所有消息的span元素
+    // Select all message span elements
     const messages = document.querySelectorAll('.chat-container .message span');
-    // 将所有消息的文本内容转换为数组，然后连接成单一字符串，每条消息一行
+    // Convert all message text content to array, then join into single string, one message per line
     let history = Array.from(messages).map(m => m.innerText).join('\n');
-    // 使用localStorage将整个聊天记录保存为一个字符串
+    // Use localStorage to save entire chat history as a string
     localStorage.setItem('chatHistory', history);
 }
 
-// 从本地存储加载聊天历史并显示在聊天界面上
+// Load chat history from local storage and display on chat interface
 function loadChatHistory() {
-    // 从localStorage获取保存的聊天历史
+    // Get saved chat history from localStorage
     const history = localStorage.getItem('chatHistory');
-    // 如果存在聊天历史
+    // If chat history exists
     if (history) {
-        // 将历史记录字符串分割成单独的消息
+        // Split history string into individual messages
         const messages = history.split('\n');
-        // 遍历每条消息
-        console.log("加载聊天历史: ", messages);
+        // Iterate through each message
+        console.log("Loading chat history: ", messages);
         messages.forEach(msg => {
             const separatorIndex = msg.indexOf(': ');
             const senderLabel = msg.substring(0, separatorIndex);
             const text = msg.substring(separatorIndex + 2);
-            const sender = senderLabel.includes('用户') ? 'user' : 'therapist';
+            const sender = senderLabel.includes('User') || senderLabel.includes('用户') ? 'user' : 'therapist';
             addMessage(sender, text, false);
         });
     }else{
@@ -144,64 +144,64 @@ function loadChatHistory() {
 }
 
 
-// 页面加载时恢复聊天历史
+// Restore chat history when page loads
 window.onload = loadChatHistory;
 
-// 当用户关闭页面时保存聊天历史
+// Save chat history when user closes page
 window.addEventListener('beforeunload', function(event) {
-    saveChatHistory();  // 调用保存聊天历史的函数
+    saveChatHistory();  // Call function to save chat history
 });
 
 function clearChat() {
-    // 弹出确认框让用户确认是否清除聊天记录
-    if (confirm("确定要清空聊天记录吗？")) {
-        // 清空聊天容器的内容
+    // Show confirmation dialog for user to confirm clearing chat history
+    if (confirm("Are you sure you want to clear the chat history?")) {
+        // Clear chat container content
         const chatContainer = document.getElementById('chat-container');
-        chatContainer.innerHTML = ''; // 清空聊天容器
-        console.log("聊天记录已清空。");
+        chatContainer.innerHTML = ''; // Clear chat container
+        console.log("Chat history cleared.");
 
-        // 清空本地存储的聊天记录
+        // Clear locally stored chat history
         localStorage.removeItem('chatHistory');
-        console.log("本地聊天历史已清除。");
+        console.log("Local chat history cleared.");
 
-        // 清空音频缓存
+        // Clear audio cache
         if ('caches' in window) {
             caches.delete('audio-cache').then(function(deleted) {
-                console.log('音频缓存已删除:', deleted);
+                console.log('Audio cache deleted:', deleted);
             });
         }
         defaultMessage();
     } else {
-        // 如果用户点击“取消”，则不执行任何操作
-        console.log("取消清空聊天记录。");
+        // If user clicks "Cancel", do not perform any action
+        console.log("Cancelled clearing chat history.");
     }
 }
 
 function defaultMessage(){
-    const messageText = "您好，请问有什么可以帮助您的？";
+    const messageText = "Hello, how can I help you?";
     addMessage('therapist', messageText, true);
-    console.log("已添加新的咨询师消息。");
+    console.log("Added new therapist message.");
 }
 
 
-// 添加一条新消息到聊天容器中
+// Add a new message to chat container
 function addMessage(sender, text, save = true) {
     const container = document.getElementById('chat-container');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
-    // 使用当前时间戳生成唯一ID
+    // Use current timestamp to generate unique ID
     const uniqueId = Date.now();
-    // 设置消息内容，包括发送者标识（用户或咨询师），消息文本。以及一个播放音频的按钮，如果发送者是咨询师，则添加播放按钮；如果是用户，则不添加
+    // Set message content, including sender identifier (user or therapist), message text. And an audio play button, if sender is therapist, add play button; if user, don't add
     // messageDiv.innerHTML = `<span  class="message-text">${sender === 'user' ? '用户' : '咨询师'}: ${text}</span>` +
     //     (sender === 'therapist' ? `<audio controls id="audioPlayer" style="display:none"></audio><button class="audio-button" onclick="loadAudio('${sender}')">播放语音</button>` : '');
 
     // messageDiv.innerHTML = `<span class="message-text">${sender === 'user' ? '用户' : '咨询师'}: ${text}</span>` +
     //     (sender === 'therapist' ? `<audio controls id="audioPlayer${uniqueId}" style="display:none"></audio><button class="audio-button" id="audioButton${uniqueId}" onclick="toggleAudio('${uniqueId}')">播放语音</button>` : '');
-    messageDiv.innerHTML = `<span class="message-text">${sender === 'user' ? '用户' : '咨询师'}: ${text}</span>`;
+    messageDiv.innerHTML = `<span class="message-text">${sender === 'user' ? 'User' : 'Therapist'}: ${text}</span>`;
 
     container.appendChild(messageDiv);
     scrollToBottom();
-    // 调用函数更新本地存储的聊天记录
+    // Call function to update locally stored chat history
     if (save)
         saveChatHistory();
 }
@@ -210,9 +210,9 @@ async function toggleAudio(uniqueId) {
     const audioPlayer = document.getElementById(`audioPlayer${uniqueId}`);
     const audioButton = document.getElementById(`audioButton${uniqueId}`);
 
-    if (!audioPlayer.src) { // 检查是否已加载音频
+    if (!audioPlayer.src) { // Check if audio is already loaded
         try {
-            const blob = await loadAndCacheAudio(); // 加载并缓存音频
+            const blob = await loadAndCacheAudio(); // Load and cache audio
             audioPlayer.src = URL.createObjectURL(blob);
         } catch (error) {
             console.error('Error fetching and playing audio:', error);
@@ -220,36 +220,36 @@ async function toggleAudio(uniqueId) {
         }
     }
 
-    // 监听音频播放结束事件
+    // Listen for audio playback end event
     audioPlayer.onended = function() {
-        audioButton.innerText = '播放语音'; // 更新按钮文本为“播放语音”
+        audioButton.innerText = 'Play Audio'; // Update button text to "Play Audio"
     };
 
     if (audioPlayer.paused || audioPlayer.ended) {
         if (audioPlayer.ended) {
-            audioPlayer.currentTime = 0; // 重置音频位置
+            audioPlayer.currentTime = 0; // Reset audio position
         }
         audioPlayer.play();
-        audioButton.innerText = '停止播放';
+        audioButton.innerText = 'Stop Playing';
     } else {
         audioPlayer.pause();
-        audioPlayer.currentTime = 0; // 当停止播放时，重置音频位置
-        audioButton.innerText = '播放语音';
+        audioPlayer.currentTime = 0; // Reset audio position when stopping playback
+        audioButton.innerText = 'Play Audio';
     }
 }
 
 function sendChatHistory() {
     const messages = document.querySelectorAll('.chat-container .message span');
     let history = Array.from(messages).map(m => m.innerText).join('\n');
-    console.log("发送聊天历史");
+    console.log("Sending chat history");
 
-    // 发送请求到后端
+    // Send request to backend
     fetch("/api/text_to_audio", {
         method: "POST",
         headers: {
-            'Content-Type': 'application/json',  // 指定发送的是JSON
+            'Content-Type': 'application/json',  // Specify sending JSON
         },
-        body: JSON.stringify({text: history})  // 将数据格式化为JSON字符串
+        body: JSON.stringify({text: history})  // Format data as JSON string
     })
         .then(response => {
             if (!response.ok) {
@@ -258,23 +258,23 @@ function sendChatHistory() {
             return response.json();
         })
         .then(data => {
-            console.log("接收到的回应: ", data);
-            // 显示LLM的回应
+            console.log("Received response: ", data);
+            // Display LLM response
             if (data.llm_response) {
                 addMessage('therapist', data.llm_response, true);
             }
-            // 播放TTS音频
+            // Play TTS audio
             if (data.ttsAudio) {
                 playTTSAudio(data.ttsAudio);
             }
         })
-        .catch(error => console.log("发送聊天历史失败: ", error));
+        .catch(error => console.log("Failed to send chat history: ", error));
 }
 
 async function loadAndCacheAudio() {
     const audioUrl = '/api/text_converte_audio';
 
-    // 尝试使用缓存
+    // Try to use cache
     if ('caches' in window) {
         const cache = await caches.open('audio-cache');
         const cachedResponse = await cache.match(audioUrl);
@@ -288,7 +288,7 @@ async function loadAndCacheAudio() {
             return response.blob();
         }
     } else {
-        // 缓存不可用，直接从服务器获取
+        // Cache not available, fetch directly from server
         console.log('Cache not supported, fetching directly');
         const response = await fetch(audioUrl);
         return response.blob();
