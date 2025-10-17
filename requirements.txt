@@ -26,3 +26,6 @@ python-docx==1.1.0
 
 # Utilities
 tqdm==4.66.1
+
+# Fix for Streamlit Cloud
+setuptools>=65.0.0

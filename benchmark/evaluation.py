@@ -26,7 +26,16 @@ np.random.seed(RANDOM_SEED)
 os.environ['PYTHONHASHSEED'] = str(RANDOM_SEED)
 
 # Initialize models
-emotion_model = EMOTIONAL_MODEL
+try:
+    emotion_model = EMOTIONAL_MODEL
+except NameError:
+    # Fallback if EMOTIONAL_MODEL not available
+    from transformers import pipeline
+    emotion_model = pipeline(
+        "text-classification", 
+        model="j-hartmann/emotion-english-distilroberta-base", 
+        top_k=None
+    )
 
 # Cache for ethical alignment scores to ensure consistency
 _ethical_alignment_cache = {}
