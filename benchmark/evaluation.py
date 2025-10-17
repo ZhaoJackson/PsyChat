@@ -105,18 +105,36 @@ def calculate_average_rouge(reference_text, generated_text):
     Returns:
         float: Adjusted ROUGE score rounded to two decimal places.
     """
-    scorer = rouge_scorer.RougeScorer(ROUGE_METRICS, use_stemmer=ROUGE_USE_STEMMER)
-    scores = scorer.score(reference_text, generated_text)
+    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
+    # Uncomment for local development with full ROUGE evaluation:
+    # if rouge_scorer is not None:
+    #     scorer = rouge_scorer.RougeScorer(ROUGE_METRICS, use_stemmer=ROUGE_USE_STEMMER)
+    #     scores = scorer.score(reference_text, generated_text)
+    #     
+    #     avg_rouge = round(
+    #         sum(
+    #             (scores['rouge1'].precision * 0.5 + scores['rouge1'].recall * 0.5) * 0.4 +  # rouge1 (40%)
+    #             (scores['rouge2'].precision * 0.6 + scores['rouge2'].recall * 0.4) * 0.3 +  # rouge2 (30%)
+    #             (scores['rougeL'].precision * 0.4 + scores['rougeL'].recall * 0.6) * 0.3    # rougeL (30%)
+    #             for metric in ROUGE_METRICS
+    #         ) / len(ROUGE_METRICS), 2
+    #     )
+    #     return avg_rouge
     
-    avg_rouge = round(
-        sum(
-            (scores['rouge1'].precision * 0.5 + scores['rouge1'].recall * 0.5) * 0.4 +  # rouge1 (40%)
-            (scores['rouge2'].precision * 0.6 + scores['rouge2'].recall * 0.4) * 0.3 +  # rouge2 (30%)
-            (scores['rougeL'].precision * 0.4 + scores['rougeL'].recall * 0.6) * 0.3    # rougeL (30%)
-            for metric in ROUGE_METRICS
-        ) / len(ROUGE_METRICS), 2
-    )
-    return avg_rouge
+    # Fallback for Streamlit Cloud deployment (simplified text overlap)
+    def simple_text_overlap(ref, gen):
+        """Simple text overlap calculation for ROUGE fallback"""
+        ref_words = set(ref.lower().split())
+        gen_words = set(gen.lower().split())
+        
+        if len(ref_words) == 0:
+            return 0.0
+        
+        overlap = len(ref_words.intersection(gen_words))
+        return overlap / len(ref_words)
+    
+    overlap_score = simple_text_overlap(reference_text, generated_text)
+    return round(overlap_score, 2)
 
 # =================================
 # METEOR EVALUATION
@@ -137,17 +155,40 @@ def calculate_meteor(reference_text, generated_text):
     Returns:
         float: METEOR score rounded to two decimal places.
     """
-    reference_tokens = nltk.word_tokenize(reference_text.lower())
-    hypothesis_tokens = nltk.word_tokenize(generated_text.lower())
+    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
+    # Uncomment for local development with full METEOR evaluation:
+    # if meteor_score is not None:
+    #     reference_tokens = nltk.word_tokenize(reference_text.lower())
+    #     hypothesis_tokens = nltk.word_tokenize(generated_text.lower())
+    #     
+    #     meteor = meteor_score(
+    #         [reference_tokens], 
+    #         hypothesis_tokens, 
+    #         alpha=METEOR_ALPHA, 
+    #         beta=METEOR_BETA, 
+    #         gamma=METEOR_GAMMA
+    #     )
+    #     return round(meteor, 2)
     
-    meteor = meteor_score(
-        [reference_tokens], 
-        hypothesis_tokens, 
-        alpha=METEOR_ALPHA, 
-        beta=METEOR_BETA, 
-        gamma=METEOR_GAMMA
-    )
-    return round(meteor, 2)
+    # Fallback for Streamlit Cloud deployment (simplified word overlap)
+    def simple_word_overlap(ref, gen):
+        """Simple word overlap calculation for METEOR fallback"""
+        ref_words = ref.lower().split()
+        gen_words = gen.lower().split()
+        
+        if len(ref_words) == 0:
+            return 0.0
+        
+        # Calculate simple overlap ratio
+        overlap = 0
+        for word in gen_words:
+            if word in ref_words:
+                overlap += 1
+        
+        return overlap / len(ref_words)
+    
+    overlap_score = simple_word_overlap(reference_text, generated_text)
+    return round(overlap_score, 2)
 
 # =================================
 # ETHICAL ALIGNMENT EVALUATION

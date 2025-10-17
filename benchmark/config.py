@@ -20,8 +20,21 @@ import nltk
 import numpy as np
 import pandas as pd
 # Removed matplotlib/seaborn imports to avoid distutils dependency
-from nltk.translate.meteor_score import meteor_score
-from rouge_score import rouge_scorer
+# COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT (Python 3.13 compatibility)
+# Uncomment these lines for local development with full evaluation:
+# from nltk.translate.meteor_score import meteor_score
+# from rouge_score import rouge_scorer
+
+# For Streamlit Cloud deployment, use simplified imports
+try:
+    from nltk.translate.meteor_score import meteor_score
+except ImportError:
+    meteor_score = None
+
+try:
+    from rouge_score import rouge_scorer
+except ImportError:
+    rouge_scorer = None
 # Removed transformers import to avoid distutils dependency
 # Removed sklearn import to avoid distutils dependency
 
