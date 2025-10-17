@@ -1,10 +1,12 @@
 """
-PsyChat - AI Psychological Counseling Chatbot + Benchmark Evaluation
-Streamlit Interface
+PsyChat - AI Psychological Counseling Chatbot + Real-time Benchmark Evaluation
+Integrated Streamlit Interface
 
-Two modes:
-1. Chat Mode: Interactive counseling with GPT-4o/O1
-2. Benchmark Mode: Evaluate AI responses against reference data
+Unified mode:
+- Chat with AI counselor
+- Real-time evaluation metrics for each response
+- Compare against human reference responses
+- Session summary with overall metrics
 """
 
 import streamlit as st
@@ -18,7 +20,7 @@ from datetime import datetime
 
 # Page configuration
 st.set_page_config(
-    page_title="PsyChat - AI Counseling & Evaluation",
+    page_title="PsyChat - AI Counseling & Real-time Evaluation",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -38,6 +40,21 @@ st.markdown("""
         padding: 10px;
         border-radius: 10px;
         margin: 5px 0;
+    }
+    .metrics-box {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+        margin: 10px 0;
+    }
+    .metric-item {
+        display: inline-block;
+        margin: 5px 10px 5px 0;
+        padding: 5px 10px;
+        background-color: #e9ecef;
+        border-radius: 15px;
+        font-size: 0.9em;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -87,6 +104,50 @@ Now, respond to the patient with the same level of empathy, professionalism, and
     
     return base_prompt
 
+def evaluate_single_response(ai_response, reference_response=None):
+    """Evaluate a single AI response against reference"""
+    try:
+        evaluator = MultiTurnEvaluator()
+        
+        # Create mock turn data for evaluation
+        turn_data = {
+            'patient': "User message",  # Placeholder
+            'doctor': reference_response if reference_response else "No reference available",
+            'turn': 1
+        }
+        
+        ai_turn_data = {
+            'patient': "User message",
+            'doctor': ai_response,
+            'turn': 1
+        }
+        
+        # Evaluate single turn
+        results = evaluator.evaluate_conversation([turn_data], [ai_turn_data])
+        
+        if results and 'turn_scores' in results and len(results['turn_scores']) > 0:
+            return results['turn_scores'][0]
+        else:
+            # Return default scores if evaluation fails
+            return {
+                'rouge_score': 0.0,
+                'meteor_score': 0.0,
+                'ethical_alignment': 0.5,
+                'sentiment_distribution': 0.5,
+                'inclusivity_score': 0.5,
+                'complexity_score': 0.5
+            }
+    except Exception as e:
+        st.error(f"Evaluation error: {e}")
+        return {
+            'rouge_score': 0.0,
+            'meteor_score': 0.0,
+            'ethical_alignment': 0.5,
+            'sentiment_distribution': 0.5,
+            'inclusivity_score': 0.5,
+            'complexity_score': 0.5
+        }
+
 # Initialize session state
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
@@ -94,17 +155,14 @@ if 'azure_client' not in st.session_state:
     st.session_state.azure_client = None
 if 'current_model' not in st.session_state:
     st.session_state.current_model = "GPT-4o"
+if 'session_metrics' not in st.session_state:
+    st.session_state.session_metrics = []
+if 'reference_scenario' not in st.session_state:
+    st.session_state.reference_scenario = None
 
 # Sidebar
 st.sidebar.title("🧠 PsyChat")
 st.sidebar.markdown("---")
-
-# Mode selection
-mode = st.sidebar.radio(
-    "Select Mode",
-    ["💬 Chat Mode", "📊 Benchmark Mode"],
-    help="Chat: Interactive counseling | Benchmark: Evaluate against reference data"
-)
 
 # Model selection
 model_choice = st.sidebar.selectbox(
@@ -133,354 +191,300 @@ if st.session_state.current_model != model_choice or st.session_state.azure_clie
     except Exception as e:
         st.sidebar.error(f"❌ Error loading model: {e}")
 
+# Reference scenario selection
 st.sidebar.markdown("---")
+st.sidebar.subheader("📊 Benchmark Reference")
 
-# ====================
-# CHAT MODE
-# ====================
-if mode == "💬 Chat Mode":
-    st.title("💬 AI Psychological Counseling Chat")
-    st.markdown("Chat with an AI counselor trained on therapeutic conversations")
+@st.cache_data
+def load_reference_scenarios():
+    try:
+        scenarios = get_all_scenarios(limit=50)
+        return scenarios
+    except Exception as e:
+        st.error(f"Error loading scenarios: {e}")
+        return []
+
+reference_scenarios = load_reference_scenarios()
+
+if reference_scenarios:
+    scenario_options = [
+        f"{s['patient_id']} - {s['condition']} (Session {s['session_id']}, {len(s['turns'])} turns)"
+        for s in reference_scenarios
+    ]
     
-    # System prompt configuration
-    with st.expander("⚙️ System Prompt Configuration"):
-        use_default_prompt = st.checkbox("Use default counseling prompt", value=True)
-        
-        if not use_default_prompt:
-            custom_prompt = st.text_area(
-                "Custom System Prompt",
-                value="""You are a professional psychological counselor with expertise in mental health...""",
-                height=150
-            )
-        else:
-            # Load examples from dataset for few-shot learning
-            use_few_shot = st.checkbox("Use few-shot examples from dataset", value=True)
-            
-            if use_few_shot:
-                st.info("💡 AI will be prompted with example therapeutic conversations from the dataset")
-    
-    # Chat controls
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        st.markdown("### 💭 Conversation")
-    with col2:
-        if st.button("🔄 New Chat"):
-            st.session_state.chat_history = []
-            if st.session_state.azure_client:
-                st.session_state.azure_client.reset_conversation()
-            st.rerun()
-    
-    # Display chat history
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.chat_history:
-            if msg['role'] == 'user':
-                st.markdown(f"""
-                <div class="user-message">
-                    <strong>👤 You:</strong><br>
-                    {msg['content']}
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="ai-message">
-                    <strong>🤖 AI Counselor ({st.session_state.current_model}):</strong><br>
-                    {msg['content']}
-                </div>
-                """, unsafe_allow_html=True)
-    
-    # Chat input
-    st.markdown("---")
-    user_input = st.text_area(
-        "💬 Your message:",
-        placeholder="Type your message here...",
-        height=100,
-        key="chat_input"
+    selected_idx = st.sidebar.selectbox(
+        "Select Reference Scenario",
+        range(len(scenario_options)),
+        format_func=lambda x: scenario_options[x],
+        help="Choose a reference scenario for comparison"
     )
     
-    col1, col2, col3 = st.columns([1, 1, 4])
-    
-    with col1:
-        send_button = st.button("📤 Send", type="primary", use_container_width=True)
-    
-    with col2:
-        if len(st.session_state.chat_history) > 0:
-            if st.button("💾 Save Chat", use_container_width=True):
-                chat_export = {
-                    'timestamp': datetime.now().isoformat(),
-                    'model': st.session_state.current_model,
-                    'messages': st.session_state.chat_history
-                }
-                st.download_button(
-                    label="Download Chat History",
-                    data=json.dumps(chat_export, indent=2),
-                    file_name=f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
-                )
-    
-    # Process message
-    if send_button and user_input.strip():
-        if st.session_state.azure_client:
-            with st.spinner("🤔 AI is thinking..."):
-                try:
-                    # Build system prompt with few-shot examples if enabled
-                    system_prompt = None
-                    if not use_default_prompt:
-                        system_prompt = custom_prompt
-                    elif use_few_shot:
-                        # Load example conversations from dataset
-                        examples = get_few_shot_examples(num_examples=3)
-                        system_prompt = build_few_shot_prompt(examples)
-                    
-                    # Generate response
-                    response = st.session_state.azure_client.generate_counselor_response(
-                        user_input,
-                        system_prompt=system_prompt
-                    )
-                    
-                    # Add to chat history
-                    st.session_state.chat_history.append({
-                        'role': 'user',
-                        'content': user_input
-                    })
-                    st.session_state.chat_history.append({
-                        'role': 'assistant',
-                        'content': response
-                    })
-                    
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Error generating response: {e}")
-        else:
-            st.error("Please configure API keys in .streamlit/secrets.toml")
+    if st.sidebar.button("🔄 Load Reference"):
+        st.session_state.reference_scenario = reference_scenarios[selected_idx]
+        st.session_state.chat_history = []
+        st.session_state.session_metrics = []
+        st.rerun()
 
-# ====================
-# BENCHMARK MODE
-# ====================
-else:  # Benchmark Mode
-    st.title("📊 Multi-Turn Benchmark Evaluation")
-    st.markdown("Evaluate AI chatbot responses against reference therapeutic conversations")
+# Display current reference
+if st.session_state.reference_scenario:
+    st.sidebar.success(f"📋 Reference: {st.session_state.reference_scenario['patient_id']}")
+    st.sidebar.metric("Turns", len(st.session_state.reference_scenario['turns']))
+    st.sidebar.metric("Condition", st.session_state.reference_scenario['condition'].title())
+else:
+    st.sidebar.info("Select a reference scenario to start")
+
+st.sidebar.markdown("---")
+
+# Main interface
+st.title("💬 AI Counseling with Real-time Evaluation")
+st.markdown("Chat with AI counselor and get instant quality metrics for each response")
+
+# System prompt configuration
+with st.expander("⚙️ System Prompt Configuration"):
+    use_default_prompt = st.checkbox("Use default counseling prompt", value=True)
     
-    # Load dataset
-    @st.cache_data
-    def load_data():
-        try:
-            summary = get_scenario_summary()
-            scenarios = get_all_scenarios(limit=100)
-            return summary, scenarios
-        except Exception as e:
-            st.error(f"Error loading dataset: {e}")
-            return None, None
-    
-    summary_df, scenarios = load_data()
-    
-    if summary_df is not None and scenarios:
-        # Dataset overview
-        st.sidebar.subheader("📊 Dataset Info")
-        st.sidebar.metric("Total Scenarios", len(scenarios))
-        
-        # Filter by condition
-        conditions = summary_df['condition'].unique().tolist()
-        selected_condition = st.sidebar.selectbox(
-            "Filter by Condition",
-            ["All"] + sorted(conditions)
+    if not use_default_prompt:
+        custom_prompt = st.text_area(
+            "Custom System Prompt",
+            value="""You are a professional psychological counselor with expertise in mental health...""",
+            height=150
         )
-        
-        # Filter scenarios
-        if selected_condition != "All":
-            filtered_scenarios = [s for s in scenarios if s.get('condition') == selected_condition]
-        else:
-            filtered_scenarios = scenarios
-        
-        # Scenario selection
-        scenario_options = [
-            f"{s['patient_id']} - {s['condition']} (Session {s['session_id']}, {len(s['turns'])} turns)"
-            for s in filtered_scenarios
-        ]
-        
-        selected_idx = st.selectbox(
-            "📋 Select Scenario to Evaluate",
-            range(len(scenario_options)),
-            format_func=lambda x: scenario_options[x]
-        )
-        
-        selected_scenario = filtered_scenarios[selected_idx]
-        
-        # Display scenario details
-        st.markdown("### 📝 Scenario Details")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Patient ID", selected_scenario['patient_id'])
-        with col2:
-            st.metric("Condition", selected_scenario['condition'].title())
-        with col3:
-            st.metric("Total Turns", len(selected_scenario['turns']))
-        with col4:
-            risk_color = "🔴" if selected_scenario.get('risk_flag') == 'yes' else "🟢"
-            st.metric("Risk Flag", f"{risk_color} {selected_scenario.get('risk_flag', 'N/A')}")
-        
-        # Show reference conversation
-        with st.expander("👀 View Reference Conversation"):
-            for turn in selected_scenario['turns']:
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.info(f"**Turn {turn['turn']} - Patient:**\n\n{turn['patient']}")
-                with col2:
-                    st.success(f"**Turn {turn['turn']} - Doctor:**\n\n{turn['doctor']}")
-        
-        st.markdown("---")
-        
-        # Evaluation controls
-        st.markdown("### 🚀 Run Evaluation")
-        
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.write(f"**Model:** {model_choice}")
-            st.write(f"**Scenario:** {selected_scenario['patient_id']} ({len(selected_scenario['turns'])} turns)")
-        
-        with col2:
-            if st.button("▶️ Run Evaluation", type="primary", use_container_width=True):
-                with st.spinner(f"🤖 Generating {model_choice} responses..."):
-                    try:
-                        # Extract patient messages
-                        patient_messages = [turn['patient'] for turn in selected_scenario['turns']]
-                        
-                        # Generate AI responses
-                        if st.session_state.azure_client:
-                            ai_conversation = st.session_state.azure_client.generate_multi_turn_conversation(
-                                patient_messages
-                            )
-                            
-                            # Add model info
-                            for turn in ai_conversation:
-                                turn['model'] = model_choice
-                            
-                            # Evaluate
-                            with st.spinner("📊 Evaluating responses..."):
-                                try:
-                                    evaluator = MultiTurnEvaluator()
-                                    results = evaluator.evaluate_conversation(
-                                        selected_scenario['turns'],
-                                        ai_conversation
-                                    )
-                                    
-                                    results['scenario_metadata'] = {
-                                        'patient_id': selected_scenario['patient_id'],
-                                        'condition': selected_scenario['condition'],
-                                        'session_id': selected_scenario['session_id'],
-                                        'risk_flag': selected_scenario['risk_flag']
-                                    }
-                                    results['model'] = model_choice
-                                    
-                                    # Display results
-                                    st.success("✅ Evaluation complete!")
-                                    
-                                    # Aggregate scores
-                                    st.markdown("### 📈 Aggregate Scores")
-                                    
-                                    agg = results['aggregate_scores']
-                                    
-                                    col1, col2, col3 = st.columns(3)
-                                    col4, col5, col6 = st.columns(3)
-                                    
-                                    with col1:
-                                        st.metric("ROUGE", f"{agg['avg_rouge_score']:.3f}")
-                                    with col2:
-                                        st.metric("METEOR", f"{agg['avg_meteor_score']:.3f}")
-                                    with col3:
-                                        st.metric("Ethical", f"{agg['avg_ethical_alignment']:.3f}")
-                                    with col4:
-                                        st.metric("Sentiment", f"{agg['avg_sentiment_distribution']:.3f}")
-                                    with col5:
-                                        st.metric("Inclusivity", f"{agg['avg_inclusivity_score']:.3f}")
-                                    with col6:
-                                        st.metric("Complexity", f"{agg['avg_complexity_score']:.3f}")
-                                    
-                                    # Visualization
-                                    fig = px.bar(
-                                        x=['ROUGE', 'METEOR', 'Ethical', 'Sentiment', 'Inclusivity', 'Complexity'],
-                                        y=[agg['avg_rouge_score'], agg['avg_meteor_score'], agg['avg_ethical_alignment'],
-                                           agg['avg_sentiment_distribution'], agg['avg_inclusivity_score'], agg['avg_complexity_score']],
-                                        title=f'Evaluation Scores - {model_choice}',
-                                        labels={'x': 'Metric', 'y': 'Score'},
-                                        color_discrete_sequence=['#1f77b4']
-                                    )
-                                    fig.update_layout(yaxis_range=[0, 1], showlegend=False)
-                                    st.plotly_chart(fig, use_container_width=True)
-                                    
-                                    # Turn-by-turn results
-                                    st.markdown("### 🔍 Turn-by-Turn Comparison")
-                                    
-                                    for turn_score in results['turn_scores']:
-                                        with st.expander(f"📝 Turn {turn_score['turn']}"):
-                                            col1, col2, col3 = st.columns(3)
-                                            
-                                            with col1:
-                                                st.markdown("**👤 Patient:**")
-                                                st.info(turn_score['patient_message'])
-                                            
-                                            with col2:
-                                                st.markdown("**👨‍⚕️ Reference:**")
-                                                st.success(turn_score['reference_response'])
-                                            
-                                            with col3:
-                                                st.markdown(f"**🤖 {model_choice}:**")
-                                                st.warning(turn_score['ai_response'])
-                                            
-                                            # Scores
-                                            st.markdown("**📊 Scores:**")
-                                            score_cols = st.columns(6)
-                                            metrics_list = [
-                                                ("ROUGE", turn_score['rouge_score']),
-                                                ("METEOR", turn_score['meteor_score']),
-                                                ("Ethical", turn_score['ethical_alignment']),
-                                                ("Sentiment", turn_score['sentiment_distribution']),
-                                                ("Inclusivity", turn_score['inclusivity_score']),
-                                                ("Complexity", turn_score['complexity_score'])
-                                            ]
-                                            
-                                            for col, (name, score) in zip(score_cols, metrics_list):
-                                                col.metric(name, f"{score:.2f}")
-                                    
-                                    # Export options
-                                    st.markdown("---")
-                                    st.markdown("### 💾 Export Results")
-                                    
-                                    col1, col2 = st.columns(2)
-                                    
-                                    with col1:
-                                        json_str = json.dumps(results, indent=2, ensure_ascii=False)
-                                        st.download_button(
-                                            label="📥 Download as JSON",
-                                            data=json_str,
-                                            file_name=f"evaluation_{selected_scenario['patient_id']}_{model_choice}.json",
-                                            mime="application/json"
-                                        )
-                                    
-                                    with col2:
-                                        turn_df = pd.DataFrame(results['turn_scores'])
-                                        csv = turn_df.to_csv(index=False)
-                                        st.download_button(
-                                            label="📥 Download as CSV",
-                                            data=csv,
-                                            file_name=f"evaluation_{selected_scenario['patient_id']}_{model_choice}.csv",
-                                            mime="text/csv"
-                                        )
-                                
-                                except Exception as e:
-                                    st.error(f"Evaluation error: {e}")
-                                    st.exception(e)
-                        else:
-                            st.error("Azure client not initialized. Check API keys.")
-                        
-                    except Exception as e:
-                        st.error(f"Error generating responses: {e}")
-                        st.exception(e)
     else:
-        st.error("Dataset not loaded. Check data/synthetic_mental_health_dataset.jsonl")
+        use_few_shot = st.checkbox("Use few-shot examples from dataset", value=True)
+        
+        if use_few_shot:
+            st.info("💡 AI will be prompted with example therapeutic conversations from the dataset")
+
+# Chat controls
+col1, col2, col3 = st.columns([3, 1, 1])
+with col1:
+    st.markdown("### 💭 Conversation with Real-time Evaluation")
+with col2:
+    if st.button("🔄 New Session"):
+        st.session_state.chat_history = []
+        st.session_state.session_metrics = []
+        if st.session_state.azure_client:
+            st.session_state.azure_client.reset_conversation()
+        st.rerun()
+with col3:
+    if len(st.session_state.chat_history) > 0:
+        if st.button("📊 Session Summary"):
+            st.session_state.show_summary = True
+            st.rerun()
+
+# Display chat history with metrics
+chat_container = st.container()
+with chat_container:
+    for i, msg in enumerate(st.session_state.chat_history):
+        if msg['role'] == 'user':
+            st.markdown(f"""
+            <div class="user-message">
+                <strong>👤 You:</strong><br>
+                {msg['content']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="ai-message">
+                <strong>🤖 AI Counselor ({st.session_state.current_model}):</strong><br>
+                {msg['content']}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Show metrics for AI response
+            if 'metrics' in msg:
+                metrics = msg['metrics']
+                st.markdown(f"""
+                <div class="metrics-box">
+                    <strong>📊 Real-time Metrics:</strong><br>
+                    <span class="metric-item">ROUGE: {metrics['rouge_score']:.3f}</span>
+                    <span class="metric-item">METEOR: {metrics['meteor_score']:.3f}</span>
+                    <span class="metric-item">Ethical: {metrics['ethical_alignment']:.3f}</span>
+                    <span class="metric-item">Sentiment: {metrics['sentiment_distribution']:.3f}</span>
+                    <span class="metric-item">Inclusive: {metrics['inclusivity_score']:.3f}</span>
+                    <span class="metric-item">Complexity: {metrics['complexity_score']:.3f}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Show comparison with reference if available
+                if 'reference_comparison' in msg and msg['reference_comparison']:
+                    ref = msg['reference_comparison']
+                    st.markdown(f"""
+                    <div style="background-color: #fff3cd; padding: 10px; border-radius: 8px; margin: 5px 0;">
+                        <strong>👨‍⚕️ Reference Response:</strong><br>
+                        {ref}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+# Chat input
+st.markdown("---")
+user_input = st.text_area(
+    "💬 Your message:",
+    placeholder="Type your message here...",
+    height=100,
+    key="chat_input"
+)
+
+col1, col2, col3 = st.columns([1, 1, 4])
+
+with col1:
+    send_button = st.button("📤 Send", type="primary", use_container_width=True)
+
+with col2:
+    if len(st.session_state.chat_history) > 0:
+        if st.button("💾 Save Session", use_container_width=True):
+            session_export = {
+                'timestamp': datetime.now().isoformat(),
+                'model': st.session_state.current_model,
+                'reference_scenario': st.session_state.reference_scenario['patient_id'] if st.session_state.reference_scenario else None,
+                'messages': st.session_state.chat_history,
+                'session_metrics': st.session_state.session_metrics
+            }
+            st.download_button(
+                label="Download Session",
+                data=json.dumps(session_export, indent=2),
+                file_name=f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+
+# Process message
+if send_button and user_input.strip():
+    if st.session_state.azure_client:
+        with st.spinner("🤔 AI is thinking..."):
+            try:
+                # Build system prompt with few-shot examples if enabled
+                system_prompt = None
+                if not use_default_prompt:
+                    system_prompt = custom_prompt
+                elif use_few_shot:
+                    # Load example conversations from dataset
+                    examples = get_few_shot_examples(num_examples=3)
+                    system_prompt = build_few_shot_prompt(examples)
+                
+                # Generate response
+                response = st.session_state.azure_client.generate_counselor_response(
+                    user_input,
+                    system_prompt=system_prompt
+                )
+                
+                # Evaluate the response
+                with st.spinner("📊 Evaluating response..."):
+                    # Get reference response if available
+                    reference_response = None
+                    if st.session_state.reference_scenario:
+                        turn_num = len(st.session_state.chat_history) // 2 + 1
+                        if turn_num <= len(st.session_state.reference_scenario['turns']):
+                            reference_response = st.session_state.reference_scenario['turns'][turn_num-1]['doctor']
+                    
+                    # Evaluate AI response
+                    metrics = evaluate_single_response(response, reference_response)
+                    
+                    # Store metrics
+                    st.session_state.session_metrics.append(metrics)
+                
+                # Add to chat history with metrics
+                st.session_state.chat_history.append({
+                    'role': 'user',
+                    'content': user_input
+                })
+                st.session_state.chat_history.append({
+                    'role': 'assistant',
+                    'content': response,
+                    'metrics': metrics,
+                    'reference_comparison': reference_response
+                })
+                
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error generating response: {e}")
+    else:
+        st.error("Please configure API keys in .streamlit/secrets.toml")
+
+# Session Summary
+if hasattr(st.session_state, 'show_summary') and st.session_state.show_summary:
+    st.markdown("---")
+    st.markdown("### 📊 Session Summary")
+    
+    if st.session_state.session_metrics:
+        # Calculate aggregate metrics
+        metrics_df = pd.DataFrame(st.session_state.session_metrics)
+        agg_metrics = {
+            'avg_rouge_score': metrics_df['rouge_score'].mean(),
+            'avg_meteor_score': metrics_df['meteor_score'].mean(),
+            'avg_ethical_alignment': metrics_df['ethical_alignment'].mean(),
+            'avg_sentiment_distribution': metrics_df['sentiment_distribution'].mean(),
+            'avg_inclusivity_score': metrics_df['inclusivity_score'].mean(),
+            'avg_complexity_score': metrics_df['complexity_score'].mean()
+        }
+        
+        # Display metrics
+        col1, col2, col3 = st.columns(3)
+        col4, col5, col6 = st.columns(3)
+        
+        with col1:
+            st.metric("ROUGE", f"{agg_metrics['avg_rouge_score']:.3f}")
+        with col2:
+            st.metric("METEOR", f"{agg_metrics['avg_meteor_score']:.3f}")
+        with col3:
+            st.metric("Ethical", f"{agg_metrics['avg_ethical_alignment']:.3f}")
+        with col4:
+            st.metric("Sentiment", f"{agg_metrics['avg_sentiment_distribution']:.3f}")
+        with col5:
+            st.metric("Inclusivity", f"{agg_metrics['avg_inclusivity_score']:.3f}")
+        with col6:
+            st.metric("Complexity", f"{agg_metrics['avg_complexity_score']:.3f}")
+        
+        # Visualization
+        fig = px.bar(
+            x=['ROUGE', 'METEOR', 'Ethical', 'Sentiment', 'Inclusivity', 'Complexity'],
+            y=[agg_metrics['avg_rouge_score'], agg_metrics['avg_meteor_score'], agg_metrics['avg_ethical_alignment'],
+               agg_metrics['avg_sentiment_distribution'], agg_metrics['avg_inclusivity_score'], agg_metrics['avg_complexity_score']],
+            title=f'Session Summary - {st.session_state.current_model}',
+            labels={'x': 'Metric', 'y': 'Score'},
+            color_discrete_sequence=['#1f77b4']
+        )
+        fig.update_layout(yaxis_range=[0, 1], showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Export session data
+        st.markdown("### 💾 Export Session Data")
+        session_data = {
+            'session_info': {
+                'timestamp': datetime.now().isoformat(),
+                'model': st.session_state.current_model,
+                'reference_scenario': st.session_state.reference_scenario['patient_id'] if st.session_state.reference_scenario else None,
+                'total_turns': len(st.session_state.session_metrics)
+            },
+            'aggregate_metrics': agg_metrics,
+            'turn_metrics': st.session_state.session_metrics,
+            'conversation': st.session_state.chat_history
+        }
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            json_str = json.dumps(session_data, indent=2, ensure_ascii=False)
+            st.download_button(
+                label="📥 Download Session JSON",
+                data=json_str,
+                file_name=f"session_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+        
+        with col2:
+            metrics_df_export = pd.DataFrame(st.session_state.session_metrics)
+            csv = metrics_df_export.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Metrics CSV",
+                data=csv,
+                file_name=f"session_metrics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+    
+    if st.button("❌ Close Summary"):
+        st.session_state.show_summary = False
+        st.rerun()
 
 # Footer
 st.sidebar.markdown("---")
@@ -489,11 +493,13 @@ st.sidebar.info("""
 
 **PsyChat System**
 
-**Chat Mode:**  
-Interactive AI counseling with GPT-4o or O1
+**Real-time Evaluation:**
+- Chat with AI counselor
+- Instant metrics for each response
+- Compare against human reference
+- Session summary with overall scores
 
-**Benchmark Mode:**  
-Evaluate AI quality with 6 metrics:
+**Metrics:**
 - ROUGE (overlap)
 - METEOR (semantic)
 - Ethical (professional)
@@ -501,5 +507,5 @@ Evaluate AI quality with 6 metrics:
 - Inclusivity (LGBTQ+)
 - Complexity (readability)
 
-**Dataset:** 543 therapy sessions
+**Dataset:** 542 therapy sessions
 """)
