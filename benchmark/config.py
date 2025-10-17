@@ -19,12 +19,11 @@ import docx
 import nltk
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+# Removed matplotlib/seaborn imports to avoid distutils dependency
 from nltk.translate.meteor_score import meteor_score
 from rouge_score import rouge_scorer
-from transformers import pipeline
-from sklearn.metrics.pairwise import cosine_similarity
+# Removed transformers import to avoid distutils dependency
+# Removed sklearn import to avoid distutils dependency
 
 # =================================
 # SYSTEM CONFIGURATION
@@ -69,12 +68,8 @@ SECTION_SUFFIX = ':'
 # MODEL CONFIGURATIONS
 # =================================
 
-# Sentiment analysis model
-EMOTIONAL_MODEL = pipeline(
-    "text-classification", 
-    model="j-hartmann/emotion-english-distilroberta-base", 
-    top_k=None
-)
+# Removed emotion model to avoid distutils dependency
+# EMOTIONAL_MODEL = pipeline(...)  # Removed for Python 3.13 compatibility
 
 # =================================
 # ROUGE EVALUATION PARAMETERS

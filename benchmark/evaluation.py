@@ -292,8 +292,8 @@ def evaluate_ethical_alignment(generated_text):
 
 def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weights):
     """
-    Compares the emotional tone of chatbot and reference responses using a weighted emotion vector.
-    Extracts emotion probabilities from each text, applies custom weights, and returns cosine similarity.
+    Simplified sentiment analysis using basic text analysis instead of heavy ML models.
+    Compares emotional tone using keyword-based sentiment scoring.
 
     Args:
         reference_text (str): Human reference response.
@@ -301,22 +301,37 @@ def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weig
         emotion_weights (dict): Mapping of emotion labels to importance weights.
 
     Returns:
-        float: Cosine similarity of weighted emotion vectors [0.0–1.0], rounded to 2 decimals.
+        float: Sentiment similarity score [0.0–1.0], rounded to 2 decimals.
     """
-    def get_weighted_vector(text):
-        raw_emotions = emotion_model(text)[0]
-        emotion_dict = {e['label'].lower(): e['score'] for e in raw_emotions}
-        return np.array([
-            emotion_dict.get(emotion, 0.0) * emotion_weights.get(emotion, 1.0)
-            for emotion in RELEVANT_EMOTIONS
-            ]).reshape(1, -1)
+    def get_sentiment_score(text):
+        """Simple keyword-based sentiment scoring"""
+        text_lower = text.lower()
+        
+        # Positive sentiment keywords
+        positive_words = ['good', 'great', 'excellent', 'wonderful', 'amazing', 'helpful', 
+                         'support', 'care', 'understand', 'empathy', 'compassion', 'safe']
+        
+        # Negative sentiment keywords  
+        negative_words = ['bad', 'terrible', 'awful', 'horrible', 'difficult', 'hard', 
+                         'struggle', 'pain', 'hurt', 'sad', 'angry', 'frustrated']
+        
+        positive_count = sum(1 for word in positive_words if word in text_lower)
+        negative_count = sum(1 for word in negative_words if word in text_lower)
+        
+        total_words = len(text.split())
+        if total_words == 0:
+            return 0.5
+        
+        # Normalize sentiment score
+        sentiment_score = (positive_count - negative_count) / total_words
+        return max(0.0, min(1.0, (sentiment_score + 1) / 2))  # Scale to 0-1
     
-    # Extract the emotion vectors for both reference and generated texts
-    ref_vec = get_weighted_vector(reference_text)
-    gen_vec = get_weighted_vector(generated_text)
-
-    # Calculate the cosine similarity between the two vectors
-    similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
+    # Get sentiment scores for both texts
+    ref_sentiment = get_sentiment_score(reference_text)
+    gen_sentiment = get_sentiment_score(generated_text)
+    
+    # Calculate similarity (1 - absolute difference)
+    similarity = 1.0 - abs(ref_sentiment - gen_sentiment)
     return round(similarity, 2)
 
 # =================================

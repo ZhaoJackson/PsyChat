@@ -1,7 +1,7 @@
-# PsyChat - Streamlit Cloud Compatible Requirements
-# Optimized for Python 3.11 (Streamlit Cloud default)
+# PsyChat - Ultra-Minimal Requirements for Python 3.13
+# Removes ALL packages that require distutils
 
-# Core frameworks
+# Core frameworks (no distutils dependencies)
 streamlit==1.31.0
 pandas==2.0.3
 numpy==1.24.4
@@ -9,19 +9,11 @@ numpy==1.24.4
 # Azure OpenAI
 openai>=1.35.0
 
-# NLP evaluation metrics (compatible versions)
-rouge-score==0.1.2
+# Basic NLP (no heavy dependencies)
 nltk==3.8.1
-scikit-learn==1.3.2
 
-# Transformers (lighter version for cloud)
-transformers==4.35.0
-torch==2.1.0
-
-# Visualization
+# Visualization (lightweight)
 plotly==5.18.0
-matplotlib==3.8.2
-seaborn==0.13.1
 
 # Document processing
 python-docx==1.1.0
@@ -29,6 +21,9 @@ python-docx==1.1.0
 # Utilities
 tqdm==4.66.1
 
-# Cloud compatibility
-setuptools>=65.0.0
-wheel>=0.40.0
+# Remove problematic packages that require distutils:
+# - transformers (requires torch, causes distutils issues)
+# - torch (heavy, causes distutils issues) 
+# - rouge-score (may have distutils dependencies)
+# - scikit-learn (may have distutils dependencies)
+# - matplotlib/seaborn (may have distutils dependencies)
