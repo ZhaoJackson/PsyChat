@@ -20,17 +20,19 @@ First download the following model files from [PsyChat directory on HuggingFace]
 
 to the `AudioPsyChat/PsyChat/` directory
 
-## Running
+## 🚀 Quick Start (Google Colab - 100% FREE!)
 
-```bash
-# Extract files and enter project directory
-cd AudioPsyChat/
-# Run environment creation/initialization script (requires pre-installed anaconda/miniconda)
-bash init_env.sh
-# Run backend program and web server
-python main.py
-# Access server_ip:8086/static page for interaction
-```
+### Easiest Way (No Setup Required):
+
+1. **Upload** `AudioPsyChat_Colab.ipynb` to [Google Colab](https://colab.research.google.com)
+2. **Enable GPU**: Runtime → Change runtime type → GPU → Save
+3. **Run all cells**: Runtime → Run all
+4. **Wait 10 minutes** for models to download
+5. **Access** the public URL shown
+
+**✅ 完全免费 ✅ 无需配置 ✅ 无需AWS ✅ 免费GPU！**
+
+详细的英文说明请查看 `README.EN.md`
 
 
 
