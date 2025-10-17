@@ -252,6 +252,9 @@ id_rsa*
 .aws/
 aws-credentials.txt
 
+# Streamlit secrets (API keys)
+.streamlit/secrets.toml
+
 # ============================================================================
 # CONDA / VIRTUAL ENVIRONMENTS
 # ============================================================================
