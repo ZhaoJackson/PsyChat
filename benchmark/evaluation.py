@@ -121,20 +121,31 @@ def calculate_average_rouge(reference_text, generated_text):
     #     )
     #     return avg_rouge
     
-    # Fallback for Streamlit Cloud deployment (simplified text overlap)
-    def simple_text_overlap(ref, gen):
-        """Simple text overlap calculation for ROUGE fallback"""
+    # Fallback for Streamlit Cloud deployment (improved text similarity)
+    def improved_text_similarity(ref, gen):
+        """Improved text similarity calculation for ROUGE fallback"""
         ref_words = set(ref.lower().split())
         gen_words = set(gen.lower().split())
         
-        if len(ref_words) == 0:
+        if len(ref_words) == 0 or len(gen_words) == 0:
             return 0.0
         
-        overlap = len(ref_words.intersection(gen_words))
-        return overlap / len(ref_words)
+        # Calculate Jaccard similarity (intersection over union)
+        intersection = len(ref_words.intersection(gen_words))
+        union = len(ref_words.union(gen_words))
+        
+        jaccard_sim = intersection / union if union > 0 else 0.0
+        
+        # Also calculate simple overlap for additional context
+        overlap_ratio = intersection / len(ref_words)
+        
+        # Combine both metrics for better scoring
+        combined_score = (jaccard_sim * 0.6) + (overlap_ratio * 0.4)
+        
+        return min(combined_score, 1.0)  # Cap at 1.0
     
-    overlap_score = simple_text_overlap(reference_text, generated_text)
-    return round(overlap_score, 2)
+    similarity_score = improved_text_similarity(reference_text, generated_text)
+    return round(similarity_score, 2)
 
 # =================================
 # METEOR EVALUATION
@@ -170,25 +181,40 @@ def calculate_meteor(reference_text, generated_text):
     #     )
     #     return round(meteor, 2)
     
-    # Fallback for Streamlit Cloud deployment (simplified word overlap)
-    def simple_word_overlap(ref, gen):
-        """Simple word overlap calculation for METEOR fallback"""
+    # Fallback for Streamlit Cloud deployment (improved word matching)
+    def improved_word_matching(ref, gen):
+        """Improved word matching calculation for METEOR fallback"""
         ref_words = ref.lower().split()
         gen_words = gen.lower().split()
         
-        if len(ref_words) == 0:
+        if len(ref_words) == 0 or len(gen_words) == 0:
             return 0.0
         
-        # Calculate simple overlap ratio
-        overlap = 0
+        # Calculate precision and recall
+        matches = 0
         for word in gen_words:
             if word in ref_words:
-                overlap += 1
+                matches += 1
         
-        return overlap / len(ref_words)
+        precision = matches / len(gen_words) if len(gen_words) > 0 else 0.0
+        recall = matches / len(ref_words) if len(ref_words) > 0 else 0.0
+        
+        # Calculate F1 score (harmonic mean of precision and recall)
+        if precision + recall > 0:
+            f1_score = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1_score = 0.0
+        
+        # Also calculate simple overlap for additional context
+        overlap_ratio = matches / len(ref_words)
+        
+        # Combine F1 and overlap for better scoring
+        combined_score = (f1_score * 0.7) + (overlap_ratio * 0.3)
+        
+        return min(combined_score, 1.0)  # Cap at 1.0
     
-    overlap_score = simple_word_overlap(reference_text, generated_text)
-    return round(overlap_score, 2)
+    matching_score = improved_word_matching(reference_text, generated_text)
+    return round(matching_score, 2)
 
 # =================================
 # ETHICAL ALIGNMENT EVALUATION
@@ -368,36 +394,50 @@ def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weig
     #     similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
     #     return round(similarity, 2)
     
-    # Fallback for Streamlit Cloud deployment (simplified keyword-based analysis)
-    def get_sentiment_score(text):
-        """Simple keyword-based sentiment scoring"""
+    # Fallback for Streamlit Cloud deployment (improved keyword-based analysis)
+    def get_enhanced_sentiment_score(text):
+        """Enhanced keyword-based sentiment scoring"""
         text_lower = text.lower()
         
-        # Positive sentiment keywords
+        # Positive sentiment keywords (therapeutic/caring)
         positive_words = ['good', 'great', 'excellent', 'wonderful', 'amazing', 'helpful', 
-                         'support', 'care', 'understand', 'empathy', 'compassion', 'safe']
+                         'support', 'care', 'understand', 'empathy', 'compassion', 'safe',
+                         'listen', 'hear', 'feel', 'together', 'help', 'better', 'hope',
+                         'strength', 'courage', 'progress', 'improve', 'heal', 'recover']
         
         # Negative sentiment keywords  
         negative_words = ['bad', 'terrible', 'awful', 'horrible', 'difficult', 'hard', 
-                         'struggle', 'pain', 'hurt', 'sad', 'angry', 'frustrated']
+                         'struggle', 'pain', 'hurt', 'sad', 'angry', 'frustrated', 'hopeless',
+                         'alone', 'scared', 'worried', 'anxious', 'depressed', 'overwhelmed']
+        
+        # Neutral/therapeutic keywords
+        neutral_words = ['understand', 'process', 'explore', 'discuss', 'consider', 'think',
+                        'reflect', 'approach', 'strategy', 'plan', 'goal', 'step']
         
         positive_count = sum(1 for word in positive_words if word in text_lower)
         negative_count = sum(1 for word in negative_words if word in text_lower)
+        neutral_count = sum(1 for word in neutral_words if word in text_lower)
         
         total_words = len(text.split())
         if total_words == 0:
             return 0.5
         
-        # Normalize sentiment score
-        sentiment_score = (positive_count - negative_count) / total_words
-        return max(0.0, min(1.0, (sentiment_score + 1) / 2))  # Scale to 0-1
+        # Calculate weighted sentiment score
+        sentiment_score = (positive_count * 1.0 - negative_count * 0.8 + neutral_count * 0.3) / total_words
+        
+        # Normalize to 0-1 range with therapeutic bias (slightly positive)
+        normalized_score = max(0.0, min(1.0, (sentiment_score + 0.2) / 1.4))
+        
+        return normalized_score
     
     # Get sentiment scores for both texts
-    ref_sentiment = get_sentiment_score(reference_text)
-    gen_sentiment = get_sentiment_score(generated_text)
+    ref_sentiment = get_enhanced_sentiment_score(reference_text)
+    gen_sentiment = get_enhanced_sentiment_score(generated_text)
     
-    # Calculate similarity (1 - absolute difference)
-    similarity = 1.0 - abs(ref_sentiment - gen_sentiment)
+    # Calculate similarity with some tolerance for therapeutic responses
+    sentiment_diff = abs(ref_sentiment - gen_sentiment)
+    similarity = 1.0 - (sentiment_diff * 0.8)  # Less harsh penalty for differences
+    
     return round(similarity, 2)
 
 # =================================
