@@ -15,6 +15,8 @@ import plotly.express as px
 from benchmark.data_loader import *
 from benchmark.azure_client import AzureOpenAIClient
 from benchmark.multi_turn_evaluator import MultiTurnEvaluator
+from benchmark.evaluation import *
+from benchmark.config import *
 import json
 from datetime import datetime
 
@@ -105,40 +107,52 @@ Now, respond to the patient with the same level of empathy, professionalism, and
     return base_prompt
 
 def evaluate_single_response(ai_response, reference_response=None):
-    """Evaluate a single AI response against reference"""
+    """Evaluate a single AI response against reference using the evaluation algorithms"""
     try:
-        evaluator = MultiTurnEvaluator()
+        from benchmark.evaluation import (
+            calculate_average_rouge, 
+            calculate_meteor, 
+            evaluate_ethical_alignment,
+            evaluate_sentiment_distribution,
+            evaluate_inclusivity_score,
+            evaluate_complexity_score
+        )
+        from benchmark.config import EMOTION_WEIGHTS, READABILITY_CONSTANTS
         
-        # Create mock turn data for evaluation
-        turn_data = {
-            'patient': "User message",  # Placeholder
-            'doctor': reference_response if reference_response else "No reference available",
-            'turn': 1
+        # Use a default reference if none provided
+        if not reference_response:
+            reference_response = "I understand you're going through a difficult time. Let's work together to find some strategies that might help you feel better."
+        
+        # Calculate ROUGE score
+        rouge_score = calculate_average_rouge(reference_response, ai_response)
+        
+        # Calculate METEOR score
+        meteor_score = calculate_meteor(reference_response, ai_response)
+        
+        # Calculate ethical alignment
+        ethical_alignment = evaluate_ethical_alignment(ai_response)
+        
+        # Calculate sentiment distribution
+        sentiment_distribution = evaluate_sentiment_distribution(reference_response, ai_response, EMOTION_WEIGHTS)
+        
+        # Calculate inclusivity score
+        inclusivity_score = evaluate_inclusivity_score(ai_response)
+        
+        # Calculate complexity score
+        complexity_score = evaluate_complexity_score(ai_response, READABILITY_CONSTANTS)
+        
+        return {
+            'rouge_score': rouge_score,
+            'meteor_score': meteor_score,
+            'ethical_alignment': ethical_alignment,
+            'sentiment_distribution': sentiment_distribution,
+            'inclusivity_score': inclusivity_score,
+            'complexity_score': complexity_score
         }
         
-        ai_turn_data = {
-            'patient': "User message",
-            'doctor': ai_response,
-            'turn': 1
-        }
-        
-        # Evaluate single turn
-        results = evaluator.evaluate_conversation([turn_data], [ai_turn_data])
-        
-        if results and 'turn_scores' in results and len(results['turn_scores']) > 0:
-            return results['turn_scores'][0]
-        else:
-            # Return default scores if evaluation fails
-            return {
-                'rouge_score': 0.0,
-                'meteor_score': 0.0,
-                'ethical_alignment': 0.5,
-                'sentiment_distribution': 0.5,
-                'inclusivity_score': 0.5,
-                'complexity_score': 0.5
-            }
     except Exception as e:
         st.error(f"Evaluation error: {e}")
+        # Return default scores if evaluation fails
         return {
             'rouge_score': 0.0,
             'meteor_score': 0.0,
