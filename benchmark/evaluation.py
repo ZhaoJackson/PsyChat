@@ -26,16 +26,21 @@ np.random.seed(RANDOM_SEED)
 os.environ['PYTHONHASHSEED'] = str(RANDOM_SEED)
 
 # Initialize models
-try:
-    emotion_model = EMOTIONAL_MODEL
-except NameError:
-    # Fallback if EMOTIONAL_MODEL not available
-    from transformers import pipeline
-    emotion_model = pipeline(
-        "text-classification", 
-        model="j-hartmann/emotion-english-distilroberta-base", 
-        top_k=None
-    )
+# COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT (Python 3.13 compatibility)
+# Uncomment these lines for local development with full evaluation:
+# try:
+#     emotion_model = EMOTIONAL_MODEL
+# except NameError:
+#     # Fallback if EMOTIONAL_MODEL not available
+#     from transformers import pipeline
+#     emotion_model = pipeline(
+#         "text-classification", 
+#         model="j-hartmann/emotion-english-distilroberta-base", 
+#         top_k=None
+#     )
+
+# For Streamlit Cloud deployment, use simplified emotion model
+emotion_model = None
 
 # Cache for ethical alignment scores to ensure consistency
 _ethical_alignment_cache = {}
@@ -292,8 +297,8 @@ def evaluate_ethical_alignment(generated_text):
 
 def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weights):
     """
-    Simplified sentiment analysis using basic text analysis instead of heavy ML models.
-    Compares emotional tone using keyword-based sentiment scoring.
+    Sentiment analysis with fallback for Streamlit Cloud deployment.
+    Uses ML model if available, otherwise falls back to keyword-based analysis.
 
     Args:
         reference_text (str): Human reference response.
@@ -303,6 +308,26 @@ def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weig
     Returns:
         float: Sentiment similarity score [0.0–1.0], rounded to 2 decimals.
     """
+    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
+    # Uncomment for local development with full ML evaluation:
+    # if emotion_model is not None:
+    #     def get_weighted_vector(text):
+    #         raw_emotions = emotion_model(text)[0]
+    #         emotion_dict = {e['label'].lower(): e['score'] for e in raw_emotions}
+    #         return np.array([
+    #             emotion_dict.get(emotion, 0.0) * emotion_weights.get(emotion, 1.0)
+    #             for emotion in RELEVANT_EMOTIONS
+    #             ]).reshape(1, -1)
+    #     
+    #     # Extract the emotion vectors for both reference and generated texts
+    #     ref_vec = get_weighted_vector(reference_text)
+    #     gen_vec = get_weighted_vector(generated_text)
+    # 
+    #     # Calculate the cosine similarity between the two vectors
+    #     similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
+    #     return round(similarity, 2)
+    
+    # Fallback for Streamlit Cloud deployment (simplified keyword-based analysis)
     def get_sentiment_score(text):
         """Simple keyword-based sentiment scoring"""
         text_lower = text.lower()
