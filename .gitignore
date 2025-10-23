@@ -1,9 +1,3 @@
-# Audio PsyChat - Git Ignore File
-
-# ============================================================================
-# MODEL FILES (Large files that should not be in version control)
-# ============================================================================
-
 # PsyChat Model Files - Download from HuggingFace instead
 PsyChat/pytorch_model-00001-of-00007/
 PsyChat/pytorch_model-00002-of-00007/
@@ -116,6 +110,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+venv_benchmark/
 ENV/
 env.bak/
 venv.bak/

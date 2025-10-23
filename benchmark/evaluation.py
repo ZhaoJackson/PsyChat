@@ -1,8 +1,3 @@
-# Copyright (c) 2025 Zichen Zhao
-# Columbia University School of Social Work
-# Licensed under the MIT Academic Research License
-# See LICENSE file in the project root for details.
-
 """
 Evaluation Algorithm Module for AI Chatbot Assessment
 
@@ -15,6 +10,7 @@ from benchmark.config import *
 import hashlib
 import random
 import os
+from sklearn.metrics.pairwise import cosine_similarity
 
 # =================================
 # SYSTEM INITIALIZATION
@@ -26,21 +22,17 @@ np.random.seed(RANDOM_SEED)
 os.environ['PYTHONHASHSEED'] = str(RANDOM_SEED)
 
 # Initialize models
-# COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT (Python 3.13 compatibility)
-# Uncomment these lines for local development with full evaluation:
-# try:
-#     emotion_model = EMOTIONAL_MODEL
-# except NameError:
-#     # Fallback if EMOTIONAL_MODEL not available
-#     from transformers import pipeline
-#     emotion_model = pipeline(
-#         "text-classification", 
-#         model="j-hartmann/emotion-english-distilroberta-base", 
-#         top_k=None
-#     )
-
-# For Streamlit Cloud deployment, use simplified emotion model
-emotion_model = None
+# ENABLED FOR LOCAL DEVELOPMENT WITH FULL EVALUATION
+try:
+    emotion_model = EMOTIONAL_MODEL
+except NameError:
+    # Fallback if EMOTIONAL_MODEL not available
+    from transformers import pipeline
+    emotion_model = pipeline(
+        "text-classification", 
+        model="j-hartmann/emotion-english-distilroberta-base", 
+        top_k=None
+    )
 
 # Cache for ethical alignment scores to ensure consistency
 _ethical_alignment_cache = {}
@@ -105,23 +97,22 @@ def calculate_average_rouge(reference_text, generated_text):
     Returns:
         float: Adjusted ROUGE score rounded to two decimal places.
     """
-    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
-    # Uncomment for local development with full ROUGE evaluation:
-    # if rouge_scorer is not None:
-    #     scorer = rouge_scorer.RougeScorer(ROUGE_METRICS, use_stemmer=ROUGE_USE_STEMMER)
-    #     scores = scorer.score(reference_text, generated_text)
-    #     
-    #     avg_rouge = round(
-    #         sum(
-    #             (scores['rouge1'].precision * 0.5 + scores['rouge1'].recall * 0.5) * 0.4 +  # rouge1 (40%)
-    #             (scores['rouge2'].precision * 0.6 + scores['rouge2'].recall * 0.4) * 0.3 +  # rouge2 (30%)
-    #             (scores['rougeL'].precision * 0.4 + scores['rougeL'].recall * 0.6) * 0.3    # rougeL (30%)
-    #             for metric in ROUGE_METRICS
-    #         ) / len(ROUGE_METRICS), 2
-    #     )
-    #     return avg_rouge
+    # ENABLED FOR LOCAL DEVELOPMENT WITH FULL ROUGE EVALUATION
+    if rouge_scorer is not None:
+        scorer = rouge_scorer.RougeScorer(ROUGE_METRICS, use_stemmer=ROUGE_USE_STEMMER)
+        scores = scorer.score(reference_text, generated_text)
+        
+        avg_rouge = round(
+            sum(
+                (scores['rouge1'].precision * 0.5 + scores['rouge1'].recall * 0.5) * 0.4 +  # rouge1 (40%)
+                (scores['rouge2'].precision * 0.6 + scores['rouge2'].recall * 0.4) * 0.3 +  # rouge2 (30%)
+                (scores['rougeL'].precision * 0.4 + scores['rougeL'].recall * 0.6) * 0.3    # rougeL (30%)
+                for metric in ROUGE_METRICS
+            ) / len(ROUGE_METRICS), 2
+        )
+        return avg_rouge
     
-    # Fallback for Streamlit Cloud deployment (improved text similarity)
+    # Fallback for when rouge_scorer is not available
     def improved_text_similarity(ref, gen):
         """Improved text similarity calculation for ROUGE fallback"""
         ref_words = set(ref.lower().split())
@@ -166,22 +157,21 @@ def calculate_meteor(reference_text, generated_text):
     Returns:
         float: METEOR score rounded to two decimal places.
     """
-    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
-    # Uncomment for local development with full METEOR evaluation:
-    # if meteor_score is not None:
-    #     reference_tokens = nltk.word_tokenize(reference_text.lower())
-    #     hypothesis_tokens = nltk.word_tokenize(generated_text.lower())
-    #     
-    #     meteor = meteor_score(
-    #         [reference_tokens], 
-    #         hypothesis_tokens, 
-    #         alpha=METEOR_ALPHA, 
-    #         beta=METEOR_BETA, 
-    #         gamma=METEOR_GAMMA
-    #     )
-    #     return round(meteor, 2)
+    # ENABLED FOR LOCAL DEVELOPMENT WITH FULL METEOR EVALUATION
+    if meteor_score is not None:
+        reference_tokens = nltk.word_tokenize(reference_text.lower())
+        hypothesis_tokens = nltk.word_tokenize(generated_text.lower())
+        
+        meteor = meteor_score(
+            [reference_tokens], 
+            hypothesis_tokens, 
+            alpha=METEOR_ALPHA, 
+            beta=METEOR_BETA, 
+            gamma=METEOR_GAMMA
+        )
+        return round(meteor, 2)
     
-    # Fallback for Streamlit Cloud deployment (improved word matching)
+    # Fallback for when meteor_score is not available
     def improved_word_matching(ref, gen):
         """Improved word matching calculation for METEOR fallback"""
         ref_words = ref.lower().split()
@@ -375,26 +365,25 @@ def evaluate_sentiment_distribution(reference_text, generated_text, emotion_weig
     Returns:
         float: Sentiment similarity score [0.0–1.0], rounded to 2 decimals.
     """
-    # COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT
-    # Uncomment for local development with full ML evaluation:
-    # if emotion_model is not None:
-    #     def get_weighted_vector(text):
-    #         raw_emotions = emotion_model(text)[0]
-    #         emotion_dict = {e['label'].lower(): e['score'] for e in raw_emotions}
-    #         return np.array([
-    #             emotion_dict.get(emotion, 0.0) * emotion_weights.get(emotion, 1.0)
-    #             for emotion in RELEVANT_EMOTIONS
-    #             ]).reshape(1, -1)
-    #     
-    #     # Extract the emotion vectors for both reference and generated texts
-    #     ref_vec = get_weighted_vector(reference_text)
-    #     gen_vec = get_weighted_vector(generated_text)
-    # 
-    #     # Calculate the cosine similarity between the two vectors
-    #     similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
-    #     return round(similarity, 2)
+    # ENABLED FOR LOCAL DEVELOPMENT WITH FULL ML EVALUATION
+    if emotion_model is not None:
+        def get_weighted_vector(text):
+            raw_emotions = emotion_model(text)[0]
+            emotion_dict = {e['label'].lower(): e['score'] for e in raw_emotions}
+            return np.array([
+                emotion_dict.get(emotion, 0.0) * emotion_weights.get(emotion, 1.0)
+                for emotion in RELEVANT_EMOTIONS
+                ]).reshape(1, -1)
+        
+        # Extract the emotion vectors for both reference and generated texts
+        ref_vec = get_weighted_vector(reference_text)
+        gen_vec = get_weighted_vector(generated_text)
+
+        # Calculate the cosine similarity between the two vectors
+        similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
+        return round(similarity, 2)
     
-    # Fallback for Streamlit Cloud deployment (improved keyword-based analysis)
+    # Fallback for when emotion_model is not available
     def get_enhanced_sentiment_score(text):
         """Enhanced keyword-based sentiment scoring"""
         text_lower = text.lower()

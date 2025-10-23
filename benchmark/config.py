@@ -1,8 +1,3 @@
-# Copyright (c) 2025 Zichen Zhao
-# Columbia University School of Social Work
-# Licensed under the MIT Academic Research License
-# See LICENSE file in the project root for details.
-
 """
 Constants and Configuration Module for AI Chatbot Evaluation System
 
@@ -15,28 +10,12 @@ and evaluation parameters used throughout the evaluation system.
 # =================================
 import os
 import csv
-import docx
+from docx import Document
 import nltk
 import numpy as np
 import pandas as pd
-# Removed matplotlib/seaborn imports to avoid distutils dependency
-# COMMENTED OUT FOR STREAMLIT CLOUD DEPLOYMENT (Python 3.13 compatibility)
-# Uncomment these lines for local development with full evaluation:
-# from nltk.translate.meteor_score import meteor_score
-# from rouge_score import rouge_scorer
-
-# For Streamlit Cloud deployment, use simplified imports
-try:
-    from nltk.translate.meteor_score import meteor_score
-except ImportError:
-    meteor_score = None
-
-try:
-    from rouge_score import rouge_scorer
-except ImportError:
-    rouge_scorer = None
-# Removed transformers import to avoid distutils dependency
-# Removed sklearn import to avoid distutils dependency
+from nltk.translate.meteor_score import meteor_score
+from rouge_score import rouge_scorer
 
 # =================================
 # SYSTEM CONFIGURATION
@@ -51,10 +30,10 @@ RANDOM_SEED = 42  # Fixed seed for deterministic behavior
 DATASET_PATH = 'data/synthetic_mental_health_dataset.jsonl'
 
 # Output data paths
-OUTPUT_CSV_PATH = 'data/outputs/evaluation_scores.csv'
-DETAILED_RESULTS_PATH = 'data/outputs/detailed_results.json'
-TURN_BY_TURN_PATH = 'data/outputs/turn_by_turn_scores.csv'
-PLOTS_DIR = 'data/outputs/plots'
+OUTPUT_CSV_PATH = 'outputs/evaluation_scores.csv'
+DETAILED_RESULTS_PATH = 'outputs/detailed_results.json'
+TURN_BY_TURN_PATH = 'outputs/turn_by_turn_scores.csv'
+PLOTS_DIR = 'outputs/plots'
 
 # =================================
 # DATA STRUCTURE DEFINITIONS
@@ -81,8 +60,13 @@ SECTION_SUFFIX = ':'
 # MODEL CONFIGURATIONS
 # =================================
 
-# Removed emotion model to avoid distutils dependency
-# EMOTIONAL_MODEL = pipeline(...)  # Removed for Python 3.13 compatibility
+# ENABLED FOR LOCAL DEVELOPMENT WITH FULL ML EVALUATION
+from transformers import pipeline
+EMOTIONAL_MODEL = pipeline(
+    "text-classification", 
+    model="j-hartmann/emotion-english-distilroberta-base", 
+    top_k=None
+)
 
 # =================================
 # ROUGE EVALUATION PARAMETERS
